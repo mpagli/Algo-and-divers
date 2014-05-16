@@ -69,8 +69,8 @@ class LDA_topic_extractor(object):
 
 	def __init__(self, corpus, numTopics, alpha, beta, lexicon):
 		self.corpus = corpus
-		self.alpha  = float(alpha) #parameter of the Dirichlet distribution for per document topics
-		self.beta   = float(beta)  #parameter of the Dirichlet distributions for per topic words
+		self.alpha  = float(alpha) #parameter of the Dirichlet distributions for per document topics
+		self.beta   = float(beta)  #parameter of the Dirichlet distribution for per topic word
 		self.numTopics = numTopics 
 		self.lexicon   = lexicon
 		self.numDoc    = len(corpus)
@@ -104,12 +104,10 @@ class LDA_topic_extractor(object):
 
 	def displayTopics(self,cut=None):
 		topics = []		#store the final list of words for each topic
-		cardinal = []	#store the number of words for this topic to normalize
 		for idx,t in enumerate(self.n_wt):
 			topics.append(filter(lambda x: x[1]!=0, [(k,t[k]) for k in t]))
-			cardinal.append(sum([float(x[1]) for x in topics[idx]]))
 
-		#sorting the lists
+		#sort the lists:
 		for idx,t in enumerate(topics):
 			topics[idx] = sorted(t,key=lambda x: x[1], reverse=True)
 
@@ -121,9 +119,16 @@ class LDA_topic_extractor(object):
 				count += 1
 				if cut and count > cut:
 					break 
-				print w[0]+":"+str(w[1]/cardinal[idx]),
+				print w[0]+":"+str(w[1]),
 			print "\n\n"
 
+
+	def readOutPhi(self):
+		"""Extract p(w|z) from the sampling, store the result in n_wt"""
+		for t in xrange(self.numTopics):
+			D = self.n_t[t] + self.beta * len(self.lexicon)
+			for w in self.n_wt[t]:
+				self.n_wt[t][w] = (self.n_wt[t][w] + self.beta)/D
 
 
 	def extract_topics(self,numIter):
@@ -145,7 +150,7 @@ class LDA_topic_extractor(object):
 					self.n_t[t]       -= 1
 					self.n_d[doc]	  -= 1
 
-					#multinomial sampling: reassign w a new topic choosen with probability p(t|doc)*p(w|t) 
+					#multinomial sampling: reassign w a new topic choosen with probability p(t|t^(-1),w) 
 					dist = []
 
 					for k in xrange(self.numTopics): 
@@ -158,11 +163,13 @@ class LDA_topic_extractor(object):
 
 					newTopic = self.sampleFromTopics(dist)
 
-					self.corpus[doc][idx]     = (w,newTopic)
+					self.corpus[doc][idx]     = (w,newTopic) #the choosen topic is attributed to the word
 					self.n_dt[doc][newTopic] += 1
 					self.n_wt[newTopic][w]   += 1
 					self.n_t[newTopic]       += 1
 					self.n_d[doc]	  		 += 1
+
+		self.readOutPhi()	#extract the word distribution for each topic
 
 
 
@@ -198,55 +205,54 @@ if __name__ == "__main__" :
 		* http://www.uoguelph.ca/~wdarling/research/papers/TM.pdf
 		* http://www.arbylon.net/publications/text-est.pdf
 
-	Command line used: ./simple_LDA.py corpus/ap.txt corpus/vocab.txt 15 25 0.01
+	Command line used: ./simple_LDA.py corpus/ap.txt corpus/vocab.txt 15 0.1 0.001
 
 	Result:
 
 ### 15 topics extracted:
 
-	Topic #1:  thursday:0.0229041967962 market:0.0215894543819 week:0.0196865377296 trade:0.0163996816939 prices:0.0163304847248 economic:0.0158461059406 friday:0.0153963256409 stock:0.0151195377642 late:0.0148427498876 earlier:0.0146005604955 
+Topic #1:  committee:0.0153523078545 house:0.0140939249119 bill:0.0135186641381 senate:0.013015310961 state:0.012619819179 congress:0.0120805122036 budget:0.0107861754625 government:0.0106423602691 sen:0.00931206972966 administration:0.0092761159313 
 
 
-	Topic #2:  president:0.0338066977533 time:0.0174862229758 congress:0.0167443832132 support:0.0149780980642 plan:0.0148014695492 state:0.0144482125194 called:0.0138830012717 family:0.0132471386181 system:0.0128232301823 leaders:0.011410202063 
+Topic #2:  department:0.0107853867017 contract:0.00978209958197 economy:0.00973193522598 food:0.00958144215801 futures:0.0084276619703 july:0.00807651147838 month:0.00767519663048 industry:0.00732404613857 health:0.00687256693468 association:0.0067722382227 
 
 
-	Topic #3:  officials:0.0348796651552 two:0.0222183467039 air:0.015730728985 meeting:0.0148936170213 minister:0.0141960237182 agency:0.0138123474015 security:0.0137425880712 saying:0.0135333100802 mrs:0.0118590861528 held:0.0118590861528 
+Topic #3:  million:0.0246005834567 company:0.0242392936614 new:0.0155683385724 billion:0.00998476900756 corp:0.00998476900756 year:0.00965632373904 co:0.0073572068594 federal:0.0073572068594 business:0.00732436233254 inc:0.00716013969828 
 
 
-	Topic #4:  percent:0.0644871325365 year:0.0521356993042 million:0.051702899757 billion:0.0285647701169 company:0.0252688351034 month:0.0151812764257 business:0.0142823850584 bank:0.0130172786896 sales:0.0111529114093 corp:0.0101208509505 
+Topic #4:  soviet:0.0317907202693 united:0.0146652841498 war:0.0140262753394 news:0.0134831178505 union:0.0131636134453 east:0.0115021905382 west:0.0110868348114 minister:0.0107992808467 government:0.0101283215958 world:0.00987271807158 
 
 
-	Topic #5:  bush:0.0372487989715 united:0.0339332837134 states:0.03379795656 american:0.0246972054943 world:0.0200622504906 military:0.0200284187022 president:0.0192502875702 war:0.0161377630422 force:0.0137018742811 washington:0.0121456120171 
+Topic #5:  children:0.0119310856041 mrs:0.0108976872011 family:0.0106471663762 people:0.0104905908606 two:0.0102400700356 hospital:0.00895615080765 women:0.0084237940546 home:0.00789143730154 found:0.00786012219842 wife:0.00751565606409 
 
 
-	Topic #6:  government:0.0517824162804 country:0.0192006133045 political:0.0185385231906 official:0.0164825591525 administration:0.016308324912 told:0.0154720005575 program:0.0154371537094 committee:0.015297766317 defense:0.0149144509879 agreement:0.0133463428233 
+Topic #6:  percent:0.0741668355073 year:0.0269589553091 million:0.0262442859705 billion:0.0192167041411 report:0.0149286881097 last:0.014174314919 workers:0.0110774144518 rate:0.0107994874868 increase:0.00913192569678 months:0.00853636791463 
 
 
-	Topic #7:  federal:0.0253187094936 just:0.0206181895876 members:0.0182679296346 office:0.0181610996368 money:0.0160244996795 last:0.0152766896945 death:0.01150202977 prison:0.0101844597963 t:0.0100064097999 five:0.00954347980913 
+Topic #7:  court:0.0272395573286 case:0.0150783810542 attorney:0.0141691342299 judge:0.0133356579744 drug:0.0130325756996 law:0.0115550496102 trial:0.0112140820511 charges:0.0110625409137 prison:0.0109488850607 federal:0.0109488850607 
 
 
-	Topic #8:  people:0.0579154579362 police:0.0372979693328 two:0.0245199613206 three:0.0200649260948 home:0.0187525901368 killed:0.0138485978726 children:0.0131578947368 spokesman:0.0129161486393 man:0.0125017267578 four:0.0121563751899 
+Topic #8:  market:0.0297462425527 stock:0.0209749286771 prices:0.0193064722333 oil:0.0168276226598 dollar:0.0161602400823 new:0.0152545065843 trading:0.0136813905088 price:0.0126803166425 york:0.0123466253538 late:0.0115839024081 
 
 
-	Topic #9:  soviet:0.0350747320925 monday:0.0248519458545 city:0.0247814438804 party:0.0235829103215 news:0.0232304004512 union:0.0214678510998 west:0.0189297800338 east:0.0146291596165 gorbachev:0.014029892837 national:0.0120558375635 
+Topic #9:  police:0.0334858353342 people:0.012092127013 killed:0.0116580517717 two:0.0101387884272 army:0.00936365406771 military:0.00871254120575 force:0.00818544984132 spokesman:0.00799941759505 air:0.00753433697937 israel:0.00750333160499 
 
 
-	Topic #10:  new:0.0714755776543 tuesday:0.0212050307107 york:0.0196329336063 last:0.0149532026908 higher:0.0123208540509 number:0.0116627668909 cents:0.0103465925709 close:0.0102003509798 lower:0.00994442819538 announced:0.00972506580872 
+Topic #10:  new:0.0221752539736 year:0.0137108959338 york:0.0106679242418 plant:0.00675053539688 d:0.00675053539688 years:0.00661062865242 last:0.0065756519663 today:0.00608597836069 t:0.00598104830235 time:0.00591109493012 
 
 
-	Topic #11:  report:0.0217619963005 day:0.021435566356 today:0.0162489572377 found:0.0156686373363 service:0.0153784773857 general:0.014653077509 months:0.0144717275398 came:0.0138551376446 attorney:0.013564977694 drug:0.0128758478111 
+Topic #11:  bush:0.0286758352896 president:0.028197373609 states:0.0168418830555 united:0.015183215896 reagan:0.01212106114 white:0.0119934713585 american:0.00915459872009 trade:0.00905890638396 washington:0.00845285492184 made:0.00807008557734 
 
 
-	Topic #12:  court:0.0257153075823 law:0.0158798283262 case:0.0155579399142 north:0.0153075822604 judge:0.0125894134478 rights:0.01169527897 charges:0.0107296137339 trial:0.0105865522175 university:0.010443490701 district:0.00979971387697 
+Topic #12:  t:0.0323448163916 i:0.0315262408869 don:0.011924676098 going:0.0110397296064 think:0.010862740308 like:0.0107742456589 time:0.0106636273474 get:0.0103760197377 people:0.00999991747874 years:0.00929196028546 
 
 
-	Topic #13:  years:0.0289417301816 house:0.0213199395877 t:0.0187559270837 work:0.0169997541358 going:0.015946050367 state:0.0158055565312 says:0.0142250008781 department:0.0140845070423 bill:0.0135576551579 good:0.0129254328966 
+Topic #13:  iraq:0.0127998511257 board:0.010041643335 two:0.00969686736119 kuwait:0.00823156947238 offer:0.00792989049527 iraqi:0.00775750250835 iran:0.00758511452143 agreed:0.00676627158357 gulf:0.00663698059338 saudi:0.00650768960319 
 
 
-	Topic #14:  i:0.0486506644969 t:0.0266815839436 m:0.0202739354489 like:0.0152224030377 dukakis:0.0151545972335 campaign:0.0151206943314 reagan:0.0150528885273 don:0.0139001898563 think:0.0128152969894 democratic:0.0126796853811 
+Topic #14:  city:0.0183318639921 students:0.0111551495286 area:0.0101020446889 fire:0.00971200585932 miles:0.0094779825616 two:0.00885392043434 officials:0.00877591266843 water:0.00873690878548 people:0.00830786607299 southern:0.00826886219004 
 
 
-	Topic #15:  first:0.0301441210046 south:0.0206549657534 john:0.0141623858447 years:0.0138056506849 take:0.0131278538813 director:0.0120576484018 high:0.0113798515982 wednesday:0.0113441780822 times:0.0106307077626 see:0.00988156392694 
-
+Topic #15:  party:0.0235592990721 dukakis:0.015776642402 political:0.0150371139402 campaign:0.0143680167604 south:0.01401586035 democratic:0.0125720190673 government:0.011480334195 people:0.0101069241944 president:0.00978998342505 national:0.0094026113736 
 
 	"""
