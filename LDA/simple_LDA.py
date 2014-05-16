@@ -190,7 +190,7 @@ if __name__ == "__main__" :
 	myLDA.displayTopics(10)
 
 	"""
-	Output obtain with the Associated Press dataset: http://www.cs.princeton.edu/~blei/lda-c/
+	Output obtained with the Associated Press dataset: http://www.cs.princeton.edu/~blei/lda-c/
 
 	Sources used for the implementation:
 		* https://www.youtube.com/watch?v=DDq3OVp9dNA
